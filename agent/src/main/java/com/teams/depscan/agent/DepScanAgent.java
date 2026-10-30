@@ -1,6 +1,10 @@
 package com.teams.depscan.agent;
 
+import java.io.File;
 import java.lang.instrument.Instrumentation;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * DepScan Agent 진입점.
@@ -16,6 +20,9 @@ public final class DepScanAgent {
 
     /** 결과 파일 기본 이름 (앱을 실행한 폴더에 생성됨) */
     private static final String DEFAULT_OUTPUT = "loaded-jars.txt";
+
+    /** Agent 자신의 jar 이름 (앱 jar 를 찾을 때 제외) */
+    private static final String AGENT_JAR_NAME = "depscan-agent";
 
     private DepScanAgent() {
         // 유틸리티 클래스: 인스턴스 생성 금지
@@ -70,12 +77,33 @@ public final class DepScanAgent {
         if (serverUrl == null) {
             return null;
         }
+        String appJar = findAppJar(System.getProperty("java.class.path"));
+        if (appJar == null) {
+            System.err.println("[DepScan] 앱 jar 를 찾지 못해 Trivy 스캔은 건너뜁니다. java -jar 로 실행하세요.");
+        }
         try {
-            return new ReportSender(serverUrl);
+            return new ReportSender(serverUrl, appJar);
         } catch (IllegalArgumentException e) {
             System.err.println("[DepScan] 서버 주소가 잘못되어 자동 전송을 끕니다: " + serverUrl);
             return null;
         }
+    }
+
+    /**
+     * java -jar 로 실행한 앱의 jar 절대 경로를 찾습니다.
+     * 클래스패스에 여러 항목이 있으면(IDE 실행 등) 어떤 것이 앱인지 알 수 없어 null 을 반환합니다.
+     */
+    static String findAppJar(String classPath) {
+        if (classPath == null) {
+            return null;
+        }
+        List<String> entries = Arrays.stream(classPath.split(File.pathSeparator))
+                .filter(entry -> !entry.isBlank() && !entry.contains(AGENT_JAR_NAME))
+                .toList();
+        if (entries.size() != 1 || !entries.get(0).endsWith(".jar")) {
+            return null;
+        }
+        return Path.of(entries.get(0)).toAbsolutePath().toString();
     }
 
     /**
