@@ -33,19 +33,11 @@ final class ReportWriter {
     }
 
     static void write(LoadedJarRecorder recorder, String outputPath) {
-        Map<String, Long> snapshot = recorder.snapshot();
-
         List<String> lines = new ArrayList<>();
         lines.add("# DepScan loaded jars");
         lines.add("# generatedAt=" + OffsetDateTime.now());
         lines.add("# artifactId\tversion\tloadedClassCount\tlocation");
-
-        // 보기 좋게 라이브러리 이름순 정렬
-        snapshot.entrySet().stream()
-                .map(entry -> toLine(entry.getKey(), entry.getValue()))
-                .flatMap(Optional::stream)
-                .sorted(Comparator.naturalOrder())
-                .forEach(lines::add);
+        lines.addAll(dataLines(recorder));
 
         try {
             Path path = Path.of(outputPath);
@@ -55,6 +47,18 @@ final class ReportWriter {
         } catch (IOException e) {
             System.err.println("[DepScan] 결과 파일 저장 실패: " + e.getMessage());
         }
+    }
+
+    /** 주석을 뺀 기록 줄 목록 (파일 저장과 서버 전송이 같은 형식을 사용) */
+    static List<String> dataLines(LoadedJarRecorder recorder) {
+        Map<String, Long> snapshot = recorder.snapshot();
+
+        // 보기 좋게 라이브러리 이름순 정렬
+        return snapshot.entrySet().stream()
+                .map(entry -> toLine(entry.getKey(), entry.getValue()))
+                .flatMap(Optional::stream)
+                .sorted(Comparator.naturalOrder())
+                .toList();
     }
 
     /** Agent 자기 자신의 jar 이름 (결과에서 제외) */

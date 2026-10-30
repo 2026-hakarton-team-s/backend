@@ -177,6 +177,23 @@ curl -F "staticReport=@sample-app/static.json" \
      http://localhost:8080/api/analyses
 ```
 
+### 자동 전송으로 실행하기
+
+Agent 에 서버 주소를 주면 앱이 켜져 있는 동안 3초마다 변경된 기록을 서버로 보냅니다. `loaded-jars.txt` 를 직접 올리지 않아도 됩니다.
+
+```bash
+# 1) 서버를 켠 뒤 정적 분석 결과만 한 번 등록
+./gradlew :server:bootRun
+curl -F "staticReport=@sample-app/static.json" http://localhost:8080/api/analyses
+
+# 2) 다른 터미널에서 서버 주소를 넣어 앱 실행
+cd sample-app
+java -javaagent:../agent/build/libs/depscan-agent.jar=server=http://localhost:8080 -jar build/libs/sample-app.jar
+
+# 3) API 를 호출한 뒤 최신 결과 확인
+curl http://localhost:8080/api/analyses/latest
+```
+
 <br>
 
 ## 🎬 데모 시나리오
@@ -242,7 +259,8 @@ snakeyaml	1.30	42	jar:nested:/app.jar/!BOOT-INF/lib/snakeyaml-1.30.jar!/
 
 | Method | URL | 설명 |
 |---|---|---|
-| POST | `/api/analyses` | `staticReport`(static.json), `loadedJars`(loaded-jars.txt) 업로드 → 교차 분석 |
+| POST | `/api/analyses` | `staticReport`(static.json), `loadedJars`(loaded-jars.txt, 생략 가능) 업로드 → 교차 분석 |
+| POST | `/api/analyses/agent-report` | Agent 자동 전송 (text/plain) → 가장 최근 정적 결과와 교차 분석 |
 | GET | `/api/analyses/latest` | 가장 최근 분석 결과 |
 | GET | `/api/analyses/{id}` | 특정 분석 결과 |
 
