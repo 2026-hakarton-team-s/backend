@@ -8,6 +8,7 @@ import com.teams.depscan.parser.LoadedJarParser;
 import com.teams.depscan.parser.TrivyReportParser;
 import com.teams.depscan.service.AnalysisService;
 import com.teams.depscan.service.ReachabilityMatcher;
+import com.teams.depscan.service.StaticScanService;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Agent 자동 전송 분석 흐름 테스트 (Spring 을 띄우지 않는 순수 단위 테스트).
@@ -31,8 +33,19 @@ class AgentReportAnalysisTest {
             new TrivyReportParser(new ObjectMapper()), new LoadedJarParser(), new ReachabilityMatcher());
 
     @Test
-    void 정적_결과가_없으면_Agent_기록을_분석할_수_없음() {
-        assertThrows(InvalidReportException.class, () -> service.analyzeAgentReport(text("snakeyaml\t1.30\t42\tjar")));
+    void 스캔_전에_온_Agent_기록은_보관했다가_함께_분석() {
+        assertTrue(service.analyzeAgentReport(text("snakeyaml\t1.30\t42\tjar")).isEmpty());
+
+        AnalysisResult result = service.analyze(text(STATIC_REPORT), null);
+
+        assertEquals(Reachability.REACHABLE, result.findings().get(0).reachability());
+    }
+
+    @Test
+    void 잘못된_경로는_스캔_거절() {
+        assertThrows(InvalidReportException.class, () -> StaticScanService.validate("relative/app.jar"));
+        assertThrows(InvalidReportException.class, () -> StaticScanService.validate("/no/such/app.jar"));
+        assertThrows(InvalidReportException.class, () -> StaticScanService.validate("/etc/hosts"));
     }
 
     @Test
@@ -46,7 +59,7 @@ class AgentReportAnalysisTest {
     void Agent_기록이_오면_REACHABLE_로_바뀜() {
         service.analyze(text(STATIC_REPORT), null);
 
-        AnalysisResult result = service.analyzeAgentReport(text("snakeyaml\t1.30\t42\tjar"));
+        AnalysisResult result = service.analyzeAgentReport(text("snakeyaml\t1.30\t42\tjar")).orElseThrow();
 
         assertEquals(Reachability.REACHABLE, result.findings().get(0).reachability());
         assertEquals(result.id(), service.getLatest().id());

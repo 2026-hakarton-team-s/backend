@@ -18,27 +18,34 @@ import java.time.Duration;
 final class ReportSender {
 
     private static final String REPORT_PATH = "/api/analyses/agent-report";
+    private static final String SCAN_PATH = "/api/analyses/static-scan";
     private static final long SEND_INTERVAL_MILLIS = 3_000;
     private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
-    private final URI endpoint;
+    private final URI reportEndpoint;
+    private final URI scanEndpoint;
+    private final String appJar;
     private final HttpClient client;
 
     private String lastSent = "";
+    private boolean scanRequested;
     private boolean failureLogged;
 
     /**
      * @param serverUrl 분석 서버 주소 (예: http://localhost:8080)
+     * @param appJar    Trivy 로 스캔할 앱 jar 의 절대 경로. 찾지 못했으면 null
      * @throws IllegalArgumentException 주소 형식이 잘못된 경우
      */
-    ReportSender(String serverUrl) {
-        this.endpoint = toEndpoint(serverUrl);
+    ReportSender(String serverUrl, String appJar) {
+        this.reportEndpoint = toEndpoint(serverUrl, REPORT_PATH);
+        this.scanEndpoint = toEndpoint(serverUrl, SCAN_PATH);
+        this.appJar = appJar;
         this.client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
     }
 
-    static URI toEndpoint(String serverUrl) {
+    static URI toEndpoint(String serverUrl, String path) {
         String base = serverUrl.endsWith("/") ? serverUrl.substring(0, serverUrl.length() - 1) : serverUrl;
-        return URI.create(base + REPORT_PATH);
+        return URI.create(base + path);
     }
 
     /** 앱이 끝날 때까지 주기적으로 전송하는 백그라운드 스레드 시작 (데몬이라 앱 종료를 막지 않음) */
@@ -47,6 +54,7 @@ final class ReportSender {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Thread.sleep(SEND_INTERVAL_MILLIS);
+                    requestScanOnce();
                     sendIfChanged(recorder);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -59,13 +67,26 @@ final class ReportSender {
         thread.start();
     }
 
+    /** 서버에 앱 jar 스캔을 요청합니다. 서버가 받을 때까지 다음 주기에 다시 시도합니다. */
+    private synchronized void requestScanOnce() {
+        if (scanRequested || appJar == null) {
+            return;
+        }
+        scanRequested = post(scanEndpoint, appJar);
+    }
+
     /** 지난 전송 이후 기록이 달라졌을 때만 서버로 전송합니다. */
     synchronized void sendIfChanged(LoadedJarRecorder recorder) {
         String body = String.join("\n", ReportWriter.dataLines(recorder));
         if (body.equals(lastSent)) {
             return;
         }
+        if (post(reportEndpoint, body)) {
+            lastSent = body;
+        }
+    }
 
+    private boolean post(URI endpoint, String body) {
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .timeout(TIMEOUT)
                 .header("Content-Type", "text/plain; charset=UTF-8")
@@ -74,16 +95,16 @@ final class ReportSender {
         try {
             int status = client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
             if (status / 100 == 2) {
-                lastSent = body;
                 failureLogged = false;
-            } else {
-                logFailure("HTTP " + status);
+                return true;
             }
+            logFailure("HTTP " + status);
         } catch (IOException e) {
             logFailure(e.toString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+        return false;
     }
 
     /** 3초마다 같은 경고가 쌓이지 않도록 연속 실패는 한 번만 출력합니다. */

@@ -27,6 +27,19 @@ class AgentOptionTest {
     @Test
     void 주소_끝의_슬래시는_무시() {
         assertEquals("http://localhost:8080/api/analyses/agent-report",
-                ReportSender.toEndpoint("http://localhost:8080/").toString());
+                ReportSender.toEndpoint("http://localhost:8080/", "/api/analyses/agent-report").toString());
+    }
+
+    @Test
+    void Agent_를_빼고_앱_jar_를_찾음() {
+        assertEquals("/app/sample-app.jar",
+                DepScanAgent.findAppJar("/app/sample-app.jar:/tools/depscan-agent.jar"));
+    }
+
+    @Test
+    void 앱이_jar_하나로_실행되지_않으면_찾지_않음() {
+        assertNull(DepScanAgent.findAppJar("/app/classes:/libs/a.jar:/libs/b.jar"));
+        assertNull(DepScanAgent.findAppJar("/app/build/classes"));
+        assertNull(DepScanAgent.findAppJar(null));
     }
 }

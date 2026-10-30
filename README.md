@@ -179,12 +179,16 @@ curl -F "staticReport=@sample-app/static.json" \
 
 ### 자동 전송으로 실행하기
 
-Agent 에 서버 주소를 주면 앱이 켜져 있는 동안 3초마다 변경된 기록을 서버로 보냅니다. `loaded-jars.txt` 를 직접 올리지 않아도 됩니다.
+Agent 에 서버 주소를 주면 파일을 직접 만들거나 올리지 않아도 됩니다.
+
+- 앱이 켜지면 Agent 가 앱 jar 경로를 서버에 알리고, 서버가 Trivy 를 실행합니다.
+- 앱이 켜져 있는 동안 3초마다 변경된 로드 기록을 서버로 보냅니다.
+
+서버와 앱이 같은 PC 에 있어야 하고, 서버 PC 에 Trivy 가 설치되어 있어야 합니다. 앱은 `java -jar` 로 실행하세요.
 
 ```bash
-# 1) 서버를 켠 뒤 정적 분석 결과만 한 번 등록
+# 1) 서버 실행
 ./gradlew :server:bootRun
-curl -F "staticReport=@sample-app/static.json" http://localhost:8080/api/analyses
 
 # 2) 다른 터미널에서 서버 주소를 넣어 앱 실행
 cd sample-app
@@ -261,6 +265,7 @@ snakeyaml	1.30	42	jar:nested:/app.jar/!BOOT-INF/lib/snakeyaml-1.30.jar!/
 |---|---|---|
 | POST | `/api/analyses` | `staticReport`(static.json), `loadedJars`(loaded-jars.txt, 생략 가능) 업로드 → 교차 분석 |
 | POST | `/api/analyses/agent-report` | Agent 자동 전송 (text/plain) → 가장 최근 정적 결과와 교차 분석 |
+| POST | `/api/analyses/static-scan` | 앱 jar 절대 경로 (text/plain) → 서버에서 Trivy 스캔, 서버 PC 요청만 허용 |
 | GET | `/api/analyses/latest` | 가장 최근 분석 결과 |
 | GET | `/api/analyses/{id}` | 특정 분석 결과 |
 
