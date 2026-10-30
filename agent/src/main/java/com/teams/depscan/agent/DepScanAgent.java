@@ -48,11 +48,34 @@ public final class DepScanAgent {
         // 2) 클래스가 로드될 때마다 recorder 에 jar 경로를 넘겨주는 감시자 등록
         inst.addTransformer(new JarTrackingTransformer(recorder));
 
-        // 3) 앱이 종료될 때 기록을 파일로 저장 (Ctrl+C, System.exit, 정상 종료 모두 포함)
-        Runtime.getRuntime().addShutdownHook(
-                new Thread(() -> ReportWriter.write(recorder, outputPath), "depscan-report-writer"));
+        // 3) 서버 주소가 있으면 앱이 켜져 있는 동안 기록을 자동 전송
+        ReportSender sender = createSender(parseOption(agentArgs, "server"));
+        if (sender != null) {
+            sender.startPeriodicSend(recorder);
+        }
+
+        // 4) 앱이 종료될 때 기록을 파일로 저장 (Ctrl+C, System.exit, 정상 종료 모두 포함)
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            ReportWriter.write(recorder, outputPath);
+            if (sender != null) {
+                sender.sendIfChanged(recorder);
+            }
+        }, "depscan-report-writer"));
 
         System.out.println("[DepScan] Agent 시작 - 종료 시 결과 저장 위치: " + outputPath);
+    }
+
+    /** 주소가 잘못되어도 대상 앱은 실행되어야 하므로 예외를 던지지 않고 전송만 끕니다. */
+    private static ReportSender createSender(String serverUrl) {
+        if (serverUrl == null) {
+            return null;
+        }
+        try {
+            return new ReportSender(serverUrl);
+        } catch (IllegalArgumentException e) {
+            System.err.println("[DepScan] 서버 주소가 잘못되어 자동 전송을 끕니다: " + serverUrl);
+            return null;
+        }
     }
 
     /**
@@ -60,15 +83,25 @@ public final class DepScanAgent {
      * 인자가 없으면 기본 파일 이름을 사용합니다.
      */
     static String parseOutputPath(String agentArgs) {
+        String output = parseOption(agentArgs, "output");
+        return output == null ? DEFAULT_OUTPUT : output;
+    }
+
+    /**
+     * "key=value,key=value" 형식의 Agent 인자에서 값을 찾습니다.
+     *
+     * @return 값이 없으면 null
+     */
+    static String parseOption(String agentArgs, String key) {
         if (agentArgs == null || agentArgs.isBlank()) {
-            return DEFAULT_OUTPUT;
+            return null;
         }
         for (String pair : agentArgs.split(",")) {
             String[] kv = pair.split("=", 2);
-            if (kv.length == 2 && kv[0].trim().equals("output") && !kv[1].isBlank()) {
+            if (kv.length == 2 && kv[0].trim().equals(key) && !kv[1].isBlank()) {
                 return kv[1].trim();
             }
         }
-        return DEFAULT_OUTPUT;
+        return null;
     }
 }
