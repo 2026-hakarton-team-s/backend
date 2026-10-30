@@ -1,0 +1,26 @@
+// =====================================================================
+// 모든 하위 모듈(agent, server)에 공통으로 적용되는 설정
+// =====================================================================
+subprojects {
+    apply plugin: 'java'
+
+    group = 'com.teams.depscan'
+    version = '0.0.1-SNAPSHOT'
+
+    java {
+        // 팀 공통 Java 버전: 17
+        // Agent 와 분석 대상 앱(sample-app)도 Java 17 로 맞춰야 Agent 가 붙습니다.
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        // 한글 주석/문자열 깨짐 방지
+        options.encoding = 'UTF-8'
+    }
+}

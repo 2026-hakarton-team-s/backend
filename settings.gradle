@@ -1,0 +1,13 @@
+// =====================================================================
+// DepScan 루트 설정
+// - agent  : 실행 중 로드된 라이브러리(jar)를 기록하는 Java Agent
+// - server : Trivy 결과 + Agent 기록을 교차 분석하는 Spring Boot 서버
+//
+// sample-app 은 일부러 "구버전 Spring Boot"를 쓰는 분석 대상 앱이라
+// 이 빌드에 포함하지 않고 독립 빌드로 둡니다. (sample-app/settings.gradle)
+// 한 빌드 안에 Spring Boot 2.x / 3.x 플러그인을 동시에 쓸 수 없기 때문입니다.
+// =====================================================================
+rootProject.name = 'depscan'
+
+include 'agent'
+include 'server'

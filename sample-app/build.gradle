@@ -1,0 +1,46 @@
+// =====================================================================
+// ⚠️ 일부러 "구버전" Spring Boot 를 사용하는 취약 샘플 앱입니다.
+//    - 목적: DepScan 의 정확도 검증용 정답지 (OWASP WebGoat 와 같은 방식)
+//    - 절대 외부에 배포하지 마세요. 로컬 데모 전용입니다.
+//
+// 구버전 Spring Boot 를 쓰면 전이 의존성(snakeyaml, jackson 등)도
+// 함께 구버전으로 들어와서 Trivy 가 취약점을 다수 찾아냅니다.
+//
+// TODO(리서치 담당): Trivy 로 스캔했을 때 취약점이 약 30개 나오는 버전인지 확인하고,
+//                   부족하면 Spring Boot 버전을 더 내리거나 취약 라이브러리를 추가하세요.
+//                   단, Agent 가 Java 17 이므로 "Java 17 에서 실행되는 버전"이어야 합니다.
+// =====================================================================
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.18'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.teams'
+version = '0.0.1'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // spring-boot-starter-web 을 통해 jackson-databind, tomcat 등이 전이 의존성으로 들어옴
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // spring-boot-starter 를 통해 snakeyaml 이 전이 의존성으로 들어옴 (직접 추가하지 않음!)
+    // → "내가 추가한 적 없는데 들어와 있다"를 보여주는 데모 포인트
+}
+
+bootJar {
+    archiveFileName = 'sample-app.jar'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

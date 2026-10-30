@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# DepScan 실행 결과물 (매번 새로 생성됨)
+loaded-jars.txt
+static.json
+
+# 환경 변수 / 비밀 값
+.env

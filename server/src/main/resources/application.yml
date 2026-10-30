@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: depscan-server
+  servlet:
+    multipart:
+      # Trivy 결과는 라이브러리가 많으면 수 MB 가 될 수 있어 여유 있게 설정
+      max-file-size: 20MB
+      max-request-size: 40MB
+
+logging:
+  level:
+    com.teams.depscan: DEBUG
