@@ -148,7 +148,7 @@ gradle wrapper --gradle-version 8.14.3
 ```bash
 cd sample-app
 ../gradlew bootJar
-trivy fs --format json -o static.json build/libs/sample-app.jar
+trivy rootfs --format json -o static.json build/libs/sample-app.jar
 ```
 
 ### 3. 동적 분석 (Agent 붙여서 실행)
