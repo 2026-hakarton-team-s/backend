@@ -129,11 +129,13 @@ my-spring-app
 
 ## 🚀 실행 방법
 
-### 0. 최초 1회: Gradle Wrapper 생성
+### 0. 자바 버전 맞추기
+
+Gradle 8.14.3 은 JDK 26 에서 실행되지 않으므로, `JAVA_HOME` 을 JDK 17 로 맞춥니다.
 
 ```bash
-# Gradle 이 설치되어 있다면 (또는 IntelliJ 로 열면 자동 처리)
-gradle wrapper --gradle-version 8.14.3
+# macOS 기준
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 ```
 
 ### 1. Agent 빌드
